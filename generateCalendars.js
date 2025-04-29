@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
+
 // Parse command-line arguments
 const args = process.argv.slice(2);
 const options = {};
@@ -69,6 +70,21 @@ function formatDate(year, month, day) {
   return `${year}${paddedMonth}${paddedDay}`;
 }
 
+function getDTSTAMP() {
+  currentDate = new Date(); // Get the current date
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = currentDate.getUTCFullYear();
+  const month = pad(currentDate.getUTCMonth() + 1);
+  const day = pad(currentDate.getUTCDate());
+  const hour = pad(currentDate.getUTCHours());
+  const minute = pad(currentDate.getUTCMinutes());
+  const second = pad(currentDate.getUTCSeconds());
+  
+  return `${year}${month}${day}T${hour}${minute}${second}Z`;
+}
+
+const dtstamp = getDTSTAMP(); // Get the current date and time in UTC format
+
 // Ensure the calendars subfolder exists
 const calendarsDir = path.join(__dirname, 'output', 'calendars');
 if (!fs.existsSync(calendarsDir)) {
@@ -111,45 +127,19 @@ METHOD:PUBLISH
           .replace('${hours}', hours);
 
         events.push(`BEGIN:VEVENT
+UID:${year}-${monthIndex}-${day}
 SUMMARY:${eventSummary}
+DTSTAMP:${dtstamp}
 DTSTART;VALUE=DATE:${date}
 DTEND;VALUE=DATE:${date}
+STATUS:CONFIRMED
+DURATION:P1DT
 DESCRIPTION:${eventDescription}
 END:VEVENT
 `);
       }
     });
   });
-
-  // Process each of the 3 latest year files in ascending order
-//   inputFiles.reverse().forEach(file => { // Reverse the inputFiles array to process oldest files first
-//     const filePath = path.join(inputFolder, file);
-//     console.log(`Processing file: ${filePath}`);
-
-//     const workHoursData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
-//     // Generate events for each day with work hours
-//     Object.entries(workHoursData.months).forEach(([monthName, days], monthIndex) => {
-//       Object.entries(days).forEach(([day, hours]) => {
-//         if (hours > 0) {
-//           const date = formatDate(workHoursData.year, monthIndex + 1, parseInt(day, 10));
-//           const eventSummary = summary.replace('${hours}', hours);
-//           const eventDescription = description
-//             .replace('${day}', day)
-//             .replace('${monthName}', monthName)
-//             .replace('${hours}', hours);
-
-//           events.push(`BEGIN:VEVENT
-// SUMMARY:${eventSummary}
-// DTSTART;VALUE=DATE:${date}
-// DTEND;VALUE=DATE:${date}
-// DESCRIPTION:${eventDescription}
-// END:VEVENT
-// `);
-//         }
-//       });
-//     });
-//   });
 
   // Add events to the ICS content in the correct order
   icsContent += events.join('\n');
