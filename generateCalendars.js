@@ -124,7 +124,7 @@ METHOD:PUBLISH
 
         const hours = days[day] || 0; // Default to 0 if no work hours are specified
         const date = formatDate(year, monthIndex + 1, day);
-        const eventSummary = `🕒 ${summary.replace('${hours}', hours)}`; // Add watch icon to the summary
+        const eventSummary = `${summary.replace('${hours}', hours)}`; // Add watch icon to the summary
         const eventDescription = description
           .replace('${day}', day)
           .replace('${monthName}', monthName)
