@@ -91,6 +91,10 @@ if (!fs.existsSync(calendarsDir)) {
   fs.mkdirSync(calendarsDir, { recursive: true });
 }
 
+function padNumber(number, length = 2) {
+  return String(number).padStart(length, '0');
+}
+
 // Generate an ICS file for each language
 languages.forEach(({ lang, summary, description }) => {
   let icsContent = `BEGIN:VCALENDAR
@@ -125,9 +129,11 @@ METHOD:PUBLISH
           .replace('${day}', day)
           .replace('${monthName}', monthName)
           .replace('${hours}', hours);
+          const paddedMonthIndex = padNumber(monthIndex + 1); // Use the helper function
+          const paddedDay = padNumber(day); // Use the helper function for days
 
         events.push(`BEGIN:VEVENT
-UID:${year}-${monthIndex}-${day}
+UID:${year}${paddedMonthIndex}${paddedDay}
 SUMMARY:${eventSummary}
 DTSTAMP:${dtstamp}
 DTSTART;VALUE=DATE:${date}
