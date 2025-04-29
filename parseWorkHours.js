@@ -80,18 +80,18 @@ inputFiles.forEach(file => {
 
   // Month information including max days
   const monthInfos = [
-    { name: 'januari', maxDays: 31 },
-    { name: 'februari', maxDays: isLeapYear ? 29 : 28 },
-    { name: 'mars', maxDays: 31 },
-    { name: 'april', maxDays: 30 },
-    { name: 'maj', maxDays: 31 },
-    { name: 'juni', maxDays: 30 },
-    { name: 'juli', maxDays: 31 },
-    { name: 'augusti', maxDays: 31 },
-    { name: 'september', maxDays: 30 },
-    { name: 'oktober', maxDays: 31 },
-    { name: 'november', maxDays: 30 },
-    { name: 'december', maxDays: 31 }
+    { name: 'januari', maxDays: 31, monthIndex: 1 },
+    { name: 'februari', maxDays: isLeapYear ? 29 : 28, monthIndex: 2 },
+    { name: 'mars', maxDays: 31, monthIndex: 3 },
+    { name: 'april', maxDays: 30, monthIndex: 4 },
+    { name: 'maj', maxDays: 31, monthIndex: 5 },
+    { name: 'juni', maxDays: 30, monthIndex: 6 },
+    { name: 'juli', maxDays: 31, monthIndex: 7 },
+    { name: 'augusti', maxDays: 31, monthIndex: 8 },
+    { name: 'september', maxDays: 30, monthIndex: 9 },
+    { name: 'oktober', maxDays: 31, monthIndex: 10 },
+    { name: 'november', maxDays: 30, monthIndex: 11 },
+    { name: 'december', maxDays: 31, monthIndex: 12 }
   ];
 
   const monthWarnings = [];
@@ -104,9 +104,9 @@ inputFiles.forEach(file => {
 
     if (monthInfo) {
       const table = $(element).closest('td').find('table').first();
-      if (!table || table.length === 0) return;
+      if (!table || table.length === 0) return;      
 
-      data.months[monthName] = {};
+      data.months[monthInfo.monthIndex] = {};
 
       // Parse each day's working hours within the month
       table.find('tr').each((i, row) => {
@@ -119,7 +119,7 @@ inputFiles.forEach(file => {
           const workHours = workHoursText ? parseFloat(workHoursText.replace(',', '.')) : 0;
 
           if (!isNaN(day)) {
-            data.months[monthName][day] = workHours;
+            data.months[monthInfo.monthIndex][day] = workHours;
 
             // Check if workHours exceeds maximum allowed
             if (workHours > maxWorkHours) {
@@ -130,7 +130,7 @@ inputFiles.forEach(file => {
       });
 
       // After parsing, validate the number of days in the month
-      const actualDays = Object.keys(data.months[monthName]).length;
+      const actualDays = Object.keys(data.months[monthInfo.monthIndex]).length;
       if (actualDays !== monthInfo.maxDays) {
         monthWarnings.push(`⚠️  ${monthName} has ${actualDays} days, expected ${monthInfo.maxDays}`);
       }

@@ -59,8 +59,28 @@ console.log(`ℹ️  Found the ${numLatestFiles} latest year files: ${inputFiles
 
 // Language configurations
 const languages = [
-  { lang: 'en', summary: 'Work Hours: ${hours}', description: 'Work hours for ${day} ${monthName}: ${hours} hours' },
-  { lang: 'sv', summary: 'Arbetstid: ${hours}', description: 'Arbetstid ${day} ${monthName}: ${hours} timmar' },
+  { 
+    lang: 'en', 
+    textSummary: 'Work Hours: ${hours}', 
+    textDescription: 'Work hours for ${day} ${monthName}: ${hours} hours',
+    textMonthTotal: 'Total work hours for ${monthName}: ${hours}',
+    textYear: 'Year',
+    textYearlyTotals: 'Yearly totals:\n${monthlyTotals}\nTotal: ${yearTotalHours} hours',
+    monthNames : [
+      'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+  },
+  { 
+    lang: 'sv',     
+    textSummary: 'Arbetstid: ${hours}', 
+    textDescription: 'Arbetstid ${day} ${monthName}: ${hours} timmar',
+    textMonthTotal: 'Totalt arbetade timmar för ${monthName}: ${hours}',
+    textYear: 'År',
+    textYearlyTotals: 'Årsvis sammanställning:\n${monthlyTotals}\nTotal: ${yearTotalHours} timmar',
+    monthNames : [
+      'januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'
+    ]
+  },
 ];
 
 // Helper function to format dates for ICS
@@ -95,8 +115,12 @@ function padNumber(number, length = 2) {
   return String(number).padStart(length, '0');
 }
 
+function capitalizeFirstLetter(string) {
+  return string[0].toUpperCase() + string.slice(1);
+}
+
 // Generate an ICS file for each language
-languages.forEach(({ lang, summary, description }) => {
+languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTotal, textYearlyTotals, monthNames }) => {
   let icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
 CALSCALE:GREGORIAN
@@ -106,31 +130,60 @@ METHOD:PUBLISH
   const events = [];
 
   // Process each year file
-  inputFiles.reverse().forEach(file => {
+  // inputFiles.reverse().forEach(file => {
+  [...inputFiles].reverse().forEach(file => {
     const filePath = path.join(inputFolder, file);
     console.log(`Processing file: ${filePath}`);
 
     const workHoursData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
     // Generate events for each day in the year
-    Object.entries(workHoursData.months).forEach(([monthName, days], monthIndex) => {
+    Object.entries(workHoursData.months).forEach(([monthIndex, days]) => {
+      const parsedMonthIndex = parseInt(monthIndex, 10); // Convert monthIndex to an integer            
       const year = workHoursData.year;
       const maxDays = Object.keys(days).length;
+      let monthTotalHours = 0;  
+
+      // Convert `monthIndex` to an integer and get the month name
+      const monthName = monthNames[parsedMonthIndex - 1]; // Adjust for 0-based index      
 
       for (let day = 1; day <= maxDays; day++) {
-        if (shouldSkipDay(year, monthIndex + 1, day)) {
+        if (shouldSkipDay(year, parsedMonthIndex, day)) {
           continue; // Skip weekends or specified days
         }
 
         const hours = days[day] || 0; // Default to 0 if no work hours are specified
-        const date = formatDate(year, monthIndex + 1, day);
-        const eventSummary = `${summary.replace('${hours}', hours)}`; // Add watch icon to the summary
-        const eventDescription = description
+        monthTotalHours += hours; // Accumulate total hours for the month
+        const date = formatDate(year, parsedMonthIndex, day);
+        const eventSummary = `🕒 ${textSummary.replace('${hours}', hours)}`; // Add watch icon to the summary
+        let eventDescription = textDescription
           .replace('${day}', day)
           .replace('${monthName}', monthName)
           .replace('${hours}', hours);
-          const paddedMonthIndex = padNumber(monthIndex + 1); // Use the helper function
-          const paddedDay = padNumber(day); // Use the helper function for days
+
+        // If it's the last day of the month, add the total hours for the month
+        if (day === maxDays) {
+          const totalDescription = textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
+          eventDescription += `\n\n${totalDescription}`; // Add total hours to the description          
+        }
+
+        // If it's the last day of the year, calculate and add yearly totals
+        if (parsedMonthIndex === 12 && day === maxDays) {
+          let yearTotalHours = 0;
+          const monthlyTotals = Object.entries(workHoursData.months).map(([mName, mDays]) => {
+            const total = Object.values(mDays).reduce((sum, h) => sum + (h || 0), 0);
+            yearTotalHours += total;
+            // return `${monthNames[mName - 1]}: ${total}`;
+            return `${capitalizeFirstLetter(monthNames[parseInt(mName, 10) - 1])}: ${total}`;
+          });
+
+          eventDescription += '\n\n' + textYearlyTotals.replace('${monthlyTotals}', monthlyTotals.join('\n')).replace('${yearTotalHours}', yearTotalHours);
+        }
+
+        const paddedMonthIndex = padNumber(parsedMonthIndex); // Use the helper function
+        const paddedDay = padNumber(day); // Use the helper function for days
+
+        
 
         events.push(`BEGIN:VEVENT
 UID:${year}${paddedMonthIndex}${paddedDay}
