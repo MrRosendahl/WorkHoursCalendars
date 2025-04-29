@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 
-
 // Parse command-line arguments
 const args = process.argv.slice(2);
 const options = {};
@@ -32,32 +31,29 @@ const skipDays = options.skipDays
   ? options.skipDays.split(',').map(day => parseInt(day.trim(), 10))
   : [0, 6]; // Default to Sunday (0) and Saturday (6)
 
-// Helper function to check if a day should be skipped
 function shouldSkipDay(year, month, day) {
-  const date = new Date(year, month - 1, day); // JavaScript months are 0-based
+  const date = new Date(year, month - 1, day);
   return skipDays.includes(date.getDay());
 }
 
-const numLatestFiles = 2; // Number of latest files to process
+const numLatestFiles = 2;
 
-// Get the 3 latest year files from the input folder
 const inputFiles = fs.readdirSync(inputFolder)
   .filter(file => path.extname(file).toLowerCase() === '.json')
   .sort((a, b) => {
     const yearA = parseInt(a.match(/\d{4}/)?.[0] || 0, 10);
     const yearB = parseInt(b.match(/\d{4}/)?.[0] || 0, 10);
-    return yearB - yearA; // Sort by year descending
+    return yearB - yearA;
   })
-  .slice(0, numLatestFiles); // Take the x latest files
+  .slice(0, numLatestFiles);
 
 if (inputFiles.length === 0) {
   console.error(`Error: No JSON files found in the input folder: ${inputFolder}`);
   process.exit(1);
 }
 
-console.log(`ℹ️  Found the ${numLatestFiles} latest year files: ${inputFiles.join(', ')}`);
+console.log(`\u2139\ufe0f  Found the ${numLatestFiles} latest year files: ${inputFiles.join(', ')}`);
 
-// Language configurations
 const languages = [
   { 
     lang: 'en', 
@@ -66,148 +62,103 @@ const languages = [
     textMonthTotal: 'Total work hours for ${monthName}: ${hours}',
     textYear: 'Year',
     textYearlyTotals: 'Yearly totals:\n${monthlyTotals}\nTotal: ${yearTotalHours} hours',
-    monthNames : [
-      'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
-    ]
+    monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   },
   { 
-    lang: 'sv',     
+    lang: 'sv', 
     textSummary: 'Arbetstid: ${hours}', 
     textDescription: 'Arbetstid ${day} ${monthName}: ${hours} timmar',
-    textMonthTotal: 'Totalt arbetade timmar för ${monthName}: ${hours}',
+    textMonthTotal: 'Totalt arbetstid för ${monthName}: ${hours}',
     textYear: 'År',
     textYearlyTotals: 'Årsvis sammanställning:\n${monthlyTotals}\nTotal: ${yearTotalHours} timmar',
-    monthNames : [
-      'januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'
-    ]
+    monthNames: ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december']
   },
 ];
 
-// Helper function to format dates for ICS
 function formatDate(year, month, day) {
-  const paddedMonth = String(month).padStart(2, '0');
-  const paddedDay = String(day).padStart(2, '0');
-  return `${year}${paddedMonth}${paddedDay}`;
+  return `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
 }
 
 function getDTSTAMP() {
-  currentDate = new Date(); // Get the current date
+  const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
-  const year = currentDate.getUTCFullYear();
-  const month = pad(currentDate.getUTCMonth() + 1);
-  const day = pad(currentDate.getUTCDate());
-  const hour = pad(currentDate.getUTCHours());
-  const minute = pad(currentDate.getUTCMinutes());
-  const second = pad(currentDate.getUTCSeconds());
-  
-  return `${year}${month}${day}T${hour}${minute}${second}Z`;
+  return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
 }
 
-const dtstamp = getDTSTAMP(); // Get the current date and time in UTC format
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
 
-// Ensure the calendars subfolder exists
+const dtstamp = getDTSTAMP();
+
 const calendarsDir = path.join(__dirname, 'output', 'calendars');
 if (!fs.existsSync(calendarsDir)) {
   fs.mkdirSync(calendarsDir, { recursive: true });
 }
 
-function padNumber(number, length = 2) {
-  return String(number).padStart(length, '0');
-}
-
-function capitalizeFirstLetter(string) {
-  return string[0].toUpperCase() + string.slice(1);
-}
-
-// Generate an ICS file for each language
 languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTotal, textYearlyTotals, monthNames }) => {
-  let icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-`;
-
+  let icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n`;
   const events = [];
 
-  // Process each year file
-  // inputFiles.reverse().forEach(file => {
   [...inputFiles].reverse().forEach(file => {
     const filePath = path.join(inputFolder, file);
     console.log(`Processing file: ${filePath}`);
 
     const workHoursData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-    // Generate events for each day in the year
+    const monthlyTotalsMap = {};
+    let yearTotalHours = 0;
+
     Object.entries(workHoursData.months).forEach(([monthIndex, days]) => {
-      const parsedMonthIndex = parseInt(monthIndex, 10); // Convert monthIndex to an integer            
+      const total = Object.values(days).reduce((sum, h) => sum + (h || 0), 0);
+      monthlyTotalsMap[monthIndex] = total;
+      yearTotalHours += total;
+    });
+
+    Object.entries(workHoursData.months).forEach(([monthIndex, days]) => {
+      const parsedMonthIndex = parseInt(monthIndex, 10);
+      const monthName = monthNames[parsedMonthIndex - 1];
       const year = workHoursData.year;
-      const maxDays = Object.keys(days).length;
-      let monthTotalHours = 0;  
+      const dayKeys = Object.keys(days).map(d => parseInt(d, 10));
+      const lastDayOfMonth = Math.max(...dayKeys);
 
-      // Convert `monthIndex` to an integer and get the month name
-      const monthName = monthNames[parsedMonthIndex - 1]; // Adjust for 0-based index      
-
-      for (let day = 1; day <= maxDays; day++) {
+      for (let day = 1; day <= lastDayOfMonth; day++) {
         if (shouldSkipDay(year, parsedMonthIndex, day)) {
-          continue; // Skip weekends or specified days
+          continue;
         }
 
-        const hours = days[day] || 0; // Default to 0 if no work hours are specified
-        monthTotalHours += hours; // Accumulate total hours for the month
+        const hours = days[day] || 0;
         const date = formatDate(year, parsedMonthIndex, day);
-        const eventSummary = `🕒 ${textSummary.replace('${hours}', hours)}`; // Add watch icon to the summary
+        const eventSummary = `\ud83d\udd52 ${textSummary.replace('${hours}', hours)}`;
         let eventDescription = textDescription
           .replace('${day}', day)
           .replace('${monthName}', monthName)
           .replace('${hours}', hours);
 
-        // If it's the last day of the month, add the total hours for the month
-        if (day === maxDays) {
+        if (day === lastDayOfMonth) {
+          const monthTotalHours = monthlyTotalsMap[parsedMonthIndex];
           const totalDescription = textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
-          eventDescription += `\n\n${totalDescription}`; // Add total hours to the description          
+          eventDescription += `\n\n${totalDescription}`;
         }
 
-        // If it's the last day of the year, calculate and add yearly totals
-        if (parsedMonthIndex === 12 && day === maxDays) {
-          let yearTotalHours = 0;
-          const monthlyTotals = Object.entries(workHoursData.months).map(([mName, mDays]) => {
-            const total = Object.values(mDays).reduce((sum, h) => sum + (h || 0), 0);
-            yearTotalHours += total;
-            // return `${monthNames[mName - 1]}: ${total}`;
-            return `${capitalizeFirstLetter(monthNames[parseInt(mName, 10) - 1])}: ${total}`;
+        if (parsedMonthIndex === 12 && day === lastDayOfMonth) {
+          const monthlyTotals = Object.entries(monthlyTotalsMap).map(([mIndex, total]) => {
+            return `${capitalizeFirstLetter(monthNames[parseInt(mIndex, 10) - 1])}: ${total}`;
           });
 
-          eventDescription += '\n\n' + textYearlyTotals.replace('${monthlyTotals}', monthlyTotals.join('\n')).replace('${yearTotalHours}', yearTotalHours);
+          eventDescription += '\n\n' + textYearlyTotals
+            .replace('${monthlyTotals}', monthlyTotals.join('\n'))
+            .replace('${yearTotalHours}', yearTotalHours);
         }
 
-        const paddedMonthIndex = padNumber(parsedMonthIndex); // Use the helper function
-        const paddedDay = padNumber(day); // Use the helper function for days
-
-        
-
-        events.push(`BEGIN:VEVENT
-UID:${year}${paddedMonthIndex}${paddedDay}
-SUMMARY:${eventSummary}
-DTSTAMP:${dtstamp}
-DTSTART;VALUE=DATE:${date}
-DTEND;VALUE=DATE:${date}
-STATUS:CONFIRMED
-DURATION:P1DT
-DESCRIPTION:${eventDescription}
-END:VEVENT
-`);
+        events.push(`BEGIN:VEVENT\nUID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}\nSUMMARY:${eventSummary}\nDTSTAMP:${dtstamp}\nDTSTART;VALUE=DATE:${date}\nDTEND;VALUE=DATE:${date}\nSTATUS:CONFIRMED\nDURATION:P1DT\nDESCRIPTION:${eventDescription}\nEND:VEVENT\n`);
       }
     });
   });
 
-  // Add events to the ICS content in the correct order
-  icsContent += events.join('\n');
+  icsContent += events.join('\n') + '\nEND:VCALENDAR';
 
-  // Finalize the ICS content
-  icsContent += `\nEND:VCALENDAR`;
-
-  // Save the ICS file
   const outputFilePath = path.join(calendarsDir, `work_hours_${lang}.ics`);
   fs.writeFileSync(outputFilePath, icsContent, 'utf8');
-  console.log(`✅ ICS calendar file created for ${lang}: ${outputFilePath}`);
+  console.log(`\u2705 ICS calendar file created for ${lang}: ${outputFilePath}`);
 });
