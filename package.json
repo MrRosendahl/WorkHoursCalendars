@@ -1,0 +1,20 @@
+{
+  "name": "work_hours_calendar",
+  "version": "1.0.0",
+  "description": "Generates calendars from work hours data",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "scripts": {
+    "build": "node parseWorkHours.js -inputFolder input && node generateCalendars.js -inputFolder ./output/work_hours/"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Michael Rosendahl",
+    "url": "https://github.com/MrRosendahl"
+  },
+  "license": "MIT",  
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}
