@@ -1,7 +1,8 @@
 // USAGE: node .\generateCalendars.js -inputFolder ./output/work_hours/ [-skipDays "0,6"]
-
 const fs = require('fs');
 const path = require('path');
+const languages = require('./languages');
+const { formatDate, getDTSTAMP, capitalizeFirstLetter, shouldSkipDay } = require('./helpers');
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -31,11 +32,6 @@ const skipDays = options.skipDays
   ? options.skipDays.split(',').map(day => parseInt(day.trim(), 10))
   : [0, 6]; // Default to Sunday (0) and Saturday (6)
 
-function shouldSkipDay(year, month, day) {
-  const date = new Date(year, month - 1, day);
-  return skipDays.includes(date.getDay());
-}
-
 const numLatestFiles = 2;
 
 const inputFiles = fs.readdirSync(inputFolder)
@@ -53,41 +49,6 @@ if (inputFiles.length === 0) {
 }
 
 console.log(`\u2139\ufe0f  Found the ${numLatestFiles} latest year files: ${inputFiles.join(', ')}`);
-
-const languages = [
-  { 
-    lang: 'en', 
-    textSummary: 'Work Hours: ${hours}', 
-    textDescription: 'Work hours for ${day} ${monthName}: ${hours} hours',
-    textMonthTotal: 'Total work hours for ${monthName}: ${hours}',
-    textYear: 'Year',
-    textYearlyTotals: 'Yearly Summary:\n${monthlyTotals}\nTotal: ${yearTotalHours} hours',
-    monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  },
-  { 
-    lang: 'sv', 
-    textSummary: 'Arbetstid: ${hours}', 
-    textDescription: 'Arbetstid ${day} ${monthName}: ${hours} timmar',
-    textMonthTotal: 'Totalt arbetstid för ${monthName}: ${hours}',
-    textYear: 'År',
-    textYearlyTotals: 'Årssammanställning:\n${monthlyTotals}\nTotal: ${yearTotalHours} timmar',
-    monthNames: ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december']
-  },
-];
-
-function formatDate(year, month, day) {
-  return `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
-}
-
-function getDTSTAMP() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
-}
-
-function capitalizeFirstLetter(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
 
 const dtstamp = getDTSTAMP();
 
@@ -123,7 +84,7 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
       const lastDayOfMonth = Math.max(...dayKeys);
 
       for (let day = 1; day <= lastDayOfMonth; day++) {
-        if (shouldSkipDay(year, parsedMonthIndex, day)) {
+        if (shouldSkipDay(year, parsedMonthIndex, day, skipDays)) {
           continue;
         }
 
