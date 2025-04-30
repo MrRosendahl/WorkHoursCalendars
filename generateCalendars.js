@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const languages = require('./languages');
-const { formatDate, getDTSTAMP, capitalizeFirstLetter, shouldSkipDay } = require('./helpers');
+const { formatDate, getDTSTAMP, capitalizeFirstLetter, shouldSkipDay, foldICalLine } = require('./helpers');
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -51,6 +51,7 @@ if (inputFiles.length === 0) {
 console.log(`\u2139\ufe0f  Found the ${numLatestFiles} latest year files: ${inputFiles.join(', ')}`);
 
 const dtstamp = getDTSTAMP();
+const lineEnding = '\r\n'; // Use CRLF for iCalendar format
 
 const calendarsDir = path.join(__dirname, 'output', 'calendars');
 if (!fs.existsSync(calendarsDir)) {
@@ -58,7 +59,7 @@ if (!fs.existsSync(calendarsDir)) {
 }
 
 languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTotal, textYearlyTotals, monthNames }) => {
-  let icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n`;
+  let icsContent = `BEGIN:VCALENDAR${lineEnding}VERSION:2.0${lineEnding}CALSCALE:GREGORIAN${lineEnding}METHOD:PUBLISH${lineEnding}`;
   const events = [];
 
   [...inputFiles].reverse().forEach(file => {
@@ -99,7 +100,7 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
         if (day === lastDayOfMonth) {
           const monthTotalHours = monthlyTotalsMap[parsedMonthIndex];
           const totalDescription = textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
-          eventDescription += `\n\n${totalDescription}`;
+          eventDescription += `${lineEnding}${totalDescription}`;
         }
 
         if (parsedMonthIndex === 12 && day === lastDayOfMonth) {
@@ -107,17 +108,20 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
             return `${capitalizeFirstLetter(monthNames[parseInt(mIndex, 10) - 1])}: ${total}`;
           });
 
-          eventDescription += '\n\n' + textYearlyTotals
-            .replace('${monthlyTotals}', monthlyTotals.join('\n'))
+          eventDescription += lineEnding + textYearlyTotals
+            .replace(/\$\{lineEnding\}/g, lineEnding)
+            .replace('${monthlyTotals}', monthlyTotals.join(lineEnding))
             .replace('${yearTotalHours}', yearTotalHours);
         }
 
-        events.push(`BEGIN:VEVENT\nUID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}\nSUMMARY:${eventSummary}\nDTSTAMP:${dtstamp}\nDTSTART;VALUE=DATE:${date}\nDTEND;VALUE=DATE:${date}\nSTATUS:CONFIRMED\nDURATION:P1DT\nDESCRIPTION:${eventDescription}\nEND:VEVENT\n`);
+        eventDescription = foldICalLine(eventDescription, lineEnding);
+
+        events.push(`BEGIN:VEVENT${lineEnding}UID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}${lineEnding}SUMMARY:${eventSummary}${lineEnding}DTSTAMP:${dtstamp}${lineEnding}DTSTART;VALUE=DATE:${date}${lineEnding}DTEND;VALUE=DATE:${date}${lineEnding}STATUS:CONFIRMED${lineEnding}DURATION:P1DT${lineEnding}DESCRIPTION:${eventDescription}${lineEnding}END:VEVENT${lineEnding}`);
       }
     });
   });
 
-  icsContent += events.join('\n') + '\nEND:VCALENDAR';
+  icsContent += events.join(lineEnding) + `${lineEnding}END:VCALENDAR`;
 
   const outputFilePath = path.join(calendarsDir, `work_hours_${lang}.ics`);
   fs.writeFileSync(outputFilePath, icsContent, 'utf8');
