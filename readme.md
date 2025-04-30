@@ -8,6 +8,7 @@ This project processes work hours data from HTML files and generates calendar fi
 - Validates work hours against a maximum allowed value.
 - Generates ICS calendar files for different languages.
 - Supports skipping weekends or custom days.
+- Supports input HTML files with a specific structure
 
 ## Prerequisites
 
