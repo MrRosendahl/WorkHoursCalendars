@@ -132,6 +132,7 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
           `DTEND;VALUE=DATE:${date}${lineEnding}` +
           `STATUS:CONFIRMED${lineEnding}` +
           `TRANSP:TRANSPARENT${lineEnding}` + // Add this line to mark the event as "available"
+          `X-MICROSOFT-CDO-BUSYSTATUS:FREE${lineEnding}` +
           `DURATION:P1DT${lineEnding}` +
           `DESCRIPTION:${eventDescription}${lineEnding}` +
           `END:VEVENT${lineEnding}`
