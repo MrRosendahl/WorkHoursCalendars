@@ -52,6 +52,7 @@ console.log(`\u2139\ufe0f  Found the ${numLatestFiles} latest year files: ${inpu
 
 const dtstamp = getDTSTAMP();
 const lineEnding = '\r\n'; // Use CRLF for iCalendar format
+const descLineEnding = '\\n';
 
 const calendarsDir = path.join(__dirname, 'output', 'calendars');
 if (!fs.existsSync(calendarsDir)) {
@@ -99,8 +100,7 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
 
         if (day === lastDayOfMonth) {
           const monthTotalHours = monthlyTotalsMap[parsedMonthIndex];
-          const totalDescription = textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
-          eventDescription += `${lineEnding}${totalDescription}`;
+          eventDescription += textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
         }
 
         if (parsedMonthIndex === 12 && day === lastDayOfMonth) {
@@ -108,15 +108,34 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
             return `${capitalizeFirstLetter(monthNames[parseInt(mIndex, 10) - 1])}: ${total}`;
           });
 
-          eventDescription += lineEnding + textYearlyTotals
-            .replace(/\$\{lineEnding\}/g, lineEnding)
+          eventDescription += textYearlyTotals
             .replace('${monthlyTotals}', monthlyTotals.join(lineEnding))
             .replace('${yearTotalHours}', yearTotalHours);
+          
+          console.log('--- BEGIN ---------------');
+          console.log(eventDescription);
+        }
+        
+        eventDescription = foldICalLine(eventDescription);
+
+        if (parsedMonthIndex === 12 && day === lastDayOfMonth) {          
+          console.log(eventDescription);
+          console.log('--- END ---------------');
         }
 
-        eventDescription = foldICalLine(eventDescription, lineEnding);
-
-        events.push(`BEGIN:VEVENT${lineEnding}UID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}${lineEnding}SUMMARY:${eventSummary}${lineEnding}DTSTAMP:${dtstamp}${lineEnding}DTSTART;VALUE=DATE:${date}${lineEnding}DTEND;VALUE=DATE:${date}${lineEnding}STATUS:CONFIRMED${lineEnding}DURATION:P1DT${lineEnding}DESCRIPTION:${eventDescription}${lineEnding}END:VEVENT${lineEnding}`);
+        events.push(
+          `BEGIN:VEVENT${lineEnding}` +
+          `UID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}${lineEnding}` +
+          `SUMMARY:${eventSummary}${lineEnding}` +
+          `DTSTAMP:${dtstamp}${lineEnding}` +
+          `DTSTART;VALUE=DATE:${date}${lineEnding}` +
+          `DTEND;VALUE=DATE:${date}${lineEnding}` +
+          `STATUS:CONFIRMED${lineEnding}` +
+          `TRANSP:TRANSPARENT${lineEnding}` + // Add this line to mark the event as "available"
+          `DURATION:P1DT${lineEnding}` +
+          `DESCRIPTION:${eventDescription}${lineEnding}` +
+          `END:VEVENT${lineEnding}`
+        );
       }
     });
   });

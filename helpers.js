@@ -17,9 +17,9 @@ function shouldSkipDay(year, month, day, skipDays) {
   return skipDays.includes(date.getDay());
 }
 
-function foldICalLine(line, lineEnding = '\r\n') {
+function foldICalLine(line, lineEnding = '\r\n ') {
   const chunks = line.match(/.{1,75}/g) || [];
-  return chunks.join(lineEnding + ' ');
+  return chunks.join(lineEnding);
 }
 
 
