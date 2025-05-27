@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const languages = require('./languages');
-const { formatDate, getDTSTAMP, capitalizeFirstLetter, shouldSkipDay, foldICalLine } = require('./helpers');
+const { formatDate, getDTSTAMP, capitalizeFirstLetter, shouldSkipDay, foldICalLine, generateUID } = require('./helpers');
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -85,10 +85,11 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
       const dayKeys = Object.keys(days).map(d => parseInt(d, 10));
       const lastDayOfMonth = Math.max(...dayKeys);
 
+      const validEventDays = dayKeys.filter(day => !shouldSkipDay(year, parsedMonthIndex, day, skipDays));
+      const lastEventDay = Math.max(...validEventDays);
+
       for (let day = 1; day <= lastDayOfMonth; day++) {
-        if (shouldSkipDay(year, parsedMonthIndex, day, skipDays)) {
-          continue;
-        }
+        if (!validEventDays.includes(day)) continue;
 
         const hours = days[day] || 0;
         const date = formatDate(year, parsedMonthIndex, day);
@@ -98,12 +99,12 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
           .replace('${monthName}', monthName)
           .replace('${hours}', hours);
 
-        if (day === lastDayOfMonth) {
+        if (day === lastEventDay) {
           const monthTotalHours = monthlyTotalsMap[parsedMonthIndex];
           eventDescription += textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
         }
 
-        if (parsedMonthIndex === 12 && day === lastDayOfMonth) {
+        if (parsedMonthIndex === 12 && day === lastEventDay) {
           const monthlyTotals = Object.entries(monthlyTotalsMap).map(([mIndex, total]) => {
             return `${capitalizeFirstLetter(monthNames[parseInt(mIndex, 10) - 1])}: ${total}`;
           });
@@ -111,33 +112,87 @@ languages.forEach(({ lang, textYear, textSummary, textDescription, textMonthTota
           eventDescription += textYearlyTotals
             .replace('${monthlyTotals}', monthlyTotals.join(lineEnding))
             .replace('${yearTotalHours}', yearTotalHours);
-          
+
           console.log('--- BEGIN ---------------');
           console.log(eventDescription);
         }
-        
+
         eventDescription = foldICalLine(eventDescription);
 
-        if (parsedMonthIndex === 12 && day === lastDayOfMonth) {          
+        if (parsedMonthIndex === 12 && day === lastEventDay) {
           console.log(eventDescription);
           console.log('--- END ---------------');
         }
 
         events.push(
           `BEGIN:VEVENT${lineEnding}` +
-          `UID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}${lineEnding}` +
+          `UID:${generateUID(year, parsedMonthIndex, day, lang)}${lineEnding}` +
           `SUMMARY:${eventSummary}${lineEnding}` +
           `DTSTAMP:${dtstamp}${lineEnding}` +
           `DTSTART;VALUE=DATE:${date}${lineEnding}` +
           `DTEND;VALUE=DATE:${date}${lineEnding}` +
           `STATUS:CONFIRMED${lineEnding}` +
-          `TRANSP:TRANSPARENT${lineEnding}` + // Add this line to mark the event as "available"
+          `TRANSP:TRANSPARENT${lineEnding}` +
           `X-MICROSOFT-CDO-BUSYSTATUS:FREE${lineEnding}` +
           `DURATION:P1DT${lineEnding}` +
           `DESCRIPTION:${eventDescription}${lineEnding}` +
           `END:VEVENT${lineEnding}`
         );
       }
+
+      // for (let day = 1; day <= lastDayOfMonth; day++) {
+      //   if (shouldSkipDay(year, parsedMonthIndex, day, skipDays)) {
+      //     continue;
+      //   }
+
+      //   const hours = days[day] || 0;
+      //   const date = formatDate(year, parsedMonthIndex, day);
+      //   const eventSummary = `\ud83d\udd52 ${textSummary.replace('${hours}', hours)}`;
+      //   let eventDescription = textDescription
+      //     .replace('${day}', day)
+      //     .replace('${monthName}', monthName)
+      //     .replace('${hours}', hours);
+
+      //   if (day === lastDayOfMonth) {
+      //     const monthTotalHours = monthlyTotalsMap[parsedMonthIndex];
+      //     eventDescription += textMonthTotal.replace('${monthName}', monthName).replace('${hours}', monthTotalHours);
+      //   }
+
+      //   if (parsedMonthIndex === 12 && day === lastDayOfMonth) {
+      //     const monthlyTotals = Object.entries(monthlyTotalsMap).map(([mIndex, total]) => {
+      //       return `${capitalizeFirstLetter(monthNames[parseInt(mIndex, 10) - 1])}: ${total}`;
+      //     });
+
+      //     eventDescription += textYearlyTotals
+      //       .replace('${monthlyTotals}', monthlyTotals.join(lineEnding))
+      //       .replace('${yearTotalHours}', yearTotalHours);
+
+      //     console.log('--- BEGIN ---------------');
+      //     console.log(eventDescription);
+      //   }
+
+      //   eventDescription = foldICalLine(eventDescription);
+
+      //   if (parsedMonthIndex === 12 && day === lastDayOfMonth) {          
+      //     console.log(eventDescription);
+      //     console.log('--- END ---------------');
+      //   }
+
+      //   events.push(
+      //     `BEGIN:VEVENT${lineEnding}` +
+      //     `UID:${year}${String(parsedMonthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}${lineEnding}` +
+      //     `SUMMARY:${eventSummary}${lineEnding}` +
+      //     `DTSTAMP:${dtstamp}${lineEnding}` +
+      //     `DTSTART;VALUE=DATE:${date}${lineEnding}` +
+      //     `DTEND;VALUE=DATE:${date}${lineEnding}` +
+      //     `STATUS:CONFIRMED${lineEnding}` +
+      //     `TRANSP:TRANSPARENT${lineEnding}` + // Add this line to mark the event as "available"
+      //     `X-MICROSOFT-CDO-BUSYSTATUS:FREE${lineEnding}` +
+      //     `DURATION:P1DT${lineEnding}` +
+      //     `DESCRIPTION:${eventDescription}${lineEnding}` +
+      //     `END:VEVENT${lineEnding}`
+      //   );
+      // }
     });
   });
 

@@ -22,11 +22,15 @@ function foldICalLine(line, lineEnding = '\r\n ') {
   return chunks.join(lineEnding);
 }
 
+function generateUID(year, month, day, lang) {
+  return `workhours-${lang}-${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}@arcticcoder.com`;
+}
 
 module.exports = {
   formatDate,
   getDTSTAMP,
   capitalizeFirstLetter,
   shouldSkipDay,
-  foldICalLine
+  foldICalLine,
+  generateUID
 };
